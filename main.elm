@@ -1,10 +1,11 @@
-import Html
+import Html exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import String.Interpolate exposing(interpolate)
 import Time exposing (Time, second)
 import Tuple exposing (..)
 import Set exposing (..)
+import Random exposing (..)
 
 
 main =
@@ -23,8 +24,8 @@ main =
 type alias Model =
   { time : Int
   , currentFigure : PositionedElement
+  , nextFigure : Figure
   , fallenTiles : Set Position
-  , score : Int
   }
 
 
@@ -37,12 +38,16 @@ type alias Figure = List Position
 type alias PositionedElement = ( Position, Figure )
 
 
+type Figures =
+  LThingy | ZThingy
+
+
 init : (Model, Cmd Msg)
 init =
   ({ time = 0
   , currentFigure = ( ( 6, 0 ), zThingy )
+  , nextFigure = lThingy
   , fallenTiles = Set.empty
-  , score = 0
   }, Cmd.none)
 
 
@@ -69,6 +74,24 @@ zThingy =
   ]
 
 
+iThingy : List Position
+iThingy =
+  [ ( 0, -2 )
+  , ( 0, -1 )
+  , ( 0, 0 )
+  , ( 0, 1 )
+  ]
+
+
+blockThingy : List Position
+blockThingy =
+  [ ( -1, -1 )
+  , ( 0, -1 )
+  , ( 0, 0 )
+  , ( -1, 0 )
+  ]
+
+
 toPositionString : Position -> String
 toPositionString position =
   interpolate "{0} {1}"
@@ -81,29 +104,41 @@ toPositionString position =
 
 type Msg =
   Tick Time
+  | NewFigure Int
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Tick newTime ->
-      (updateCurrentFigure model, Cmd.none)
+      updateCurrentFigure model
+    NewFigure nr ->
+      updateNextFigure model nr
 
 
 
-updateCurrentFigure : Model -> Model
+updateCurrentFigure : Model -> (Model, Cmd Msg)
 updateCurrentFigure model =
   if elementCanMoveDown model.currentFigure model.fallenTiles then
-    { model |
+    ({ model |
       time = model.time + 1,
       currentFigure = ( (moveDown (first model.currentFigure)), (Tuple.second model.currentFigure) )
-    }
+    }, Cmd.none)
   else
-    { model |
+    ({ model |
       time = model.time + 1,
-      currentFigure = ( ( 6, 0 ), (Tuple.second model.currentFigure) ),
+      currentFigure = ( ( 6, 0 ), model.nextFigure ),
       fallenTiles = Set.union model.fallenTiles <| Set.fromList <| elementPositions model.currentFigure
-    }
+    }, Random.generate NewFigure (Random.int 1 4))
+
+
+updateNextFigure : Model -> Int -> (Model, Cmd Msg)
+updateNextFigure model nr =
+  case nr of
+    1 -> ({ model | nextFigure = zThingy }, Cmd.none)
+    2 -> ({ model | nextFigure = blockThingy }, Cmd.none)
+    3 -> ({ model | nextFigure = iThingy }, Cmd.none)
+    _ -> ({ model | nextFigure = lThingy }, Cmd.none)
 
 
 elementCanMoveDown : PositionedElement -> Set Position -> Bool
@@ -147,11 +182,34 @@ subscriptions model =
 
 view : Model -> Html.Html Msg
 view model =
+  div
+    []
+    [ Html.text "ELM Tetris"
+    , board model
+    , nextFigure model.nextFigure
+    ]
+
+
+
+board : Model -> Html.Html Msg
+board model =
   svg
     [ width "120", height "180" ]
     [ figure model.currentFigure
     , tiles model.fallenTiles
     , rect [ x "0", y "0", width "120", height "180", fill "none", stroke "black" ] []
+    ]
+
+
+nextFigure : Figure -> Html.Html Msg
+nextFigure figure =
+  svg
+    []
+    [ g
+      [ transform "translate(20 20)"
+      , stroke "LightSeaGreen"
+      ]
+      (List.map tile figure)
     ]
 
 
@@ -161,7 +219,7 @@ figure ( position, elements ) =
     [ transform (interpolate "translate({0})" [ toPositionString position ])
     , stroke "LightSeaGreen"
     ]
-    <| List.map tile elements
+    (List.map tile elements)
 
 
 tiles : Set Position -> Svg Msg
@@ -176,82 +234,3 @@ tile position =
   rect
     [ x (toString <| 10 * first position), y (toString <| 10 * Tuple.second position), width "8", height "8", fill "white" ]
     []
-
-
-
--- threePointyThingy : Position -> Html.Html Msg
--- threePointyThingy t =
---   g
---     [ transform (interpolate "translate({0} {1})" [(toString <| 10 * first t), (toString <| 10 * Tuple.second t)])
---     , stroke "LightSeaGreen"
---     ]
---     [ tile ( 0, 0 )
---     , tile ( 10, 0 )
---     , tile ( 20, 0 )
---     , tile ( 10, 10 )
---     ]
---
---
--- crowBar : Position -> Html.Html Msg
--- crowBar t =
---   g
---     [ transform (interpolate "translate({0} {1})" [(toString <| 10 * first t), (toString <| 10 * Tuple.second t)])
---     , stroke "fuchsia"
---     ]
---     [ tile ( 0, 0 )
---     , tile ( 0, 10 )
---     , tile ( 0, 20 )
---     , tile ( 0, 30 )
---     ]
---
---
--- zThingy : Position -> Html.Html Msg
--- zThingy t =
---   g
---     [ transform (interpolate "translate({0} {1})" [(toString <| 10 * first t), (toString <| 10 * Tuple.second t)])
---     , stroke "crimson"
---     ]
---     [ tile ( 0, 0 )
---     , tile ( 10, 0 )
---     , tile ( 10, 10 )
---     , tile ( 20, 10 )
---     ]
---
---
--- zThingyReverse : Position -> Html.Html Msg
--- zThingyReverse t =
---   g
---     [ transform (interpolate "translate({0} {1})" [(toString <| 10 * first t), (toString <| 10 * Tuple.second t)])
---     , stroke "midnightblue"
---     ]
---     [ tile ( 0, 10 )
---     , tile ( 10, 10 )
---     , tile ( 10, 0 )
---     , tile ( 20, 0 )
---     ]
---
---
--- lThingy : Position -> Html.Html Msg
--- lThingy t =
---   g
---     [ transform (interpolate "translate({0} {1})" [(toString <| 10 * first t), (toString <| 10 * Tuple.second t)])
---     , stroke "LightCoral"
---     ]
---     [ tile ( 0, 0 )
---     , tile ( 10, 0 )
---     , tile ( 20, 00 )
---     , tile ( 20, 10 )
---     ]
---
---
--- lThingyReverse : Position -> Html.Html Msg
--- lThingyReverse t =
---   g
---     [ transform (interpolate "translate({0} {1})" [(toString <| 10 * first t), (toString <| 10 * Tuple.second t)])
---     , stroke "Coral"
---     ]
---     [ tile ( 0, 10 )
---     , tile ( 0, 0 )
---     , tile ( 10, 0 )
---     , tile ( 20, 0 )
---     ]
