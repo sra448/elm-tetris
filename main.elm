@@ -6,6 +6,8 @@ import Time exposing (Time, second)
 import Tuple exposing (..)
 import Set exposing (..)
 import Random exposing (..)
+import Keyboard exposing (..)
+
 
 
 main =
@@ -54,6 +56,16 @@ init =
 moveDown : Position -> Position
 moveDown position =
   ( (first position), (Tuple.second position) + 1 )
+
+
+moveRight : Position -> Position
+moveRight position =
+  ( (first position) + 1, (Tuple.second position) )
+
+
+moveLeft : Position -> Position
+moveLeft position =
+  ( (first position) - 1, (Tuple.second position) )
 
 
 lThingy : List Position
@@ -105,6 +117,7 @@ toPositionString position =
 type Msg =
   Tick Time
   | NewFigure Int
+  | Presses Int
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -114,6 +127,8 @@ update msg model =
       updateCurrentFigure model
     NewFigure nr ->
       updateNextFigure model nr
+    Presses code ->
+      Debug.log (toString code) <| updateCurrentFigurePosition model code
 
 
 
@@ -141,6 +156,26 @@ updateNextFigure model nr =
     _ -> ({ model | nextFigure = lThingy }, Cmd.none)
 
 
+updateCurrentFigurePosition : Model -> Int -> (Model, Cmd Msg)
+updateCurrentFigurePosition model code =
+  case code of
+    37 ->
+      ({ model |
+        currentFigure = moveElementLeft model.currentFigure
+      }, Cmd.none)
+    39 ->
+      ({ model |
+        currentFigure = moveElementRight model.currentFigure
+      }, Cmd.none)
+    40 ->
+      ({ model |
+        currentFigure = moveElementDown model.currentFigure
+      }, Cmd.none)
+    _ ->
+      (model, Cmd.none)
+
+
+
 elementCanMoveDown : PositionedElement -> Set Position -> Bool
 elementCanMoveDown (position, element) fallenTiles =
   (Tuple.second position) < 18 && (elementOnFallenTile (position, element) fallenTiles)
@@ -154,6 +189,16 @@ elementOnFallenTile  currentElement fallenTiles =
 moveElementDown : PositionedElement -> PositionedElement
 moveElementDown (position, element) =
   ( (moveDown position), element )
+
+
+moveElementRight : PositionedElement -> PositionedElement
+moveElementRight (position, element) =
+  ( (moveRight position), element )
+
+
+moveElementLeft : PositionedElement -> PositionedElement
+moveElementLeft (position, element) =
+  ( (moveLeft position), element )
 
 
 
@@ -173,7 +218,10 @@ elementPositions (position, element) =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every (Time.second / 2) Tick
+  Sub.batch
+    [ Time.every (Time.second / 2) Tick
+    , Keyboard.downs Presses
+    ]
 
 
 
