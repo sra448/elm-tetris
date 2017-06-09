@@ -27,8 +27,8 @@ main =
 
 type alias Model =
     { currentFigure : PositionedElement
-    , nextFigure : Figure
-    , fallenTiles : Set Position
+    , nextFigure : Shape
+    , fallenTiles : Set Tile
     }
 
 
@@ -36,12 +36,20 @@ type alias Position =
     ( Int, Int )
 
 
-type alias Figure =
-    List Position
+type alias Tile =
+    ( Position, Color )
+
+
+type alias Shape =
+    ( Color, List Position )
+
+
+type alias Color =
+    String
 
 
 type alias PositionedElement =
-    ( Position, Figure )
+    ( Position, Shape )
 
 
 type Direction
@@ -75,40 +83,48 @@ moveLeft ( x, y ) =
     ( x - 1, y )
 
 
-lThingy : List Position
+lThingy : Shape
 lThingy =
-    [ ( -1, 0 )
-    , ( 0, 0 )
-    , ( 1, 0 )
-    , ( 1, 1 )
-    ]
+    ( "crimson"
+    , [ ( -1, 0 )
+      , ( 0, 0 )
+      , ( 1, 0 )
+      , ( 1, 1 )
+      ]
+    )
 
 
-zThingy : List Position
+zThingy : Shape
 zThingy =
-    [ ( -1, -2 )
-    , ( 0, -2 )
-    , ( 0, -1 )
-    , ( 1, -1 )
-    ]
+    ( "coral"
+    , [ ( -1, -2 )
+      , ( 0, -2 )
+      , ( 0, -1 )
+      , ( 1, -1 )
+      ]
+    )
 
 
-iThingy : List Position
+iThingy : Shape
 iThingy =
-    [ ( 0, -2 )
-    , ( 0, -1 )
-    , ( 0, 0 )
-    , ( 0, 1 )
-    ]
+    ( "lightseagreen"
+    , [ ( 0, -2 )
+      , ( 0, -1 )
+      , ( 0, 0 )
+      , ( 0, 1 )
+      ]
+    )
 
 
-blockThingy : List Position
+blockThingy : Shape
 blockThingy =
-    [ ( -1, -1 )
-    , ( 0, -1 )
-    , ( 0, 0 )
-    , ( -1, 0 )
-    ]
+    ( "crimson"
+    , [ ( -1, -1 )
+      , ( 0, -1 )
+      , ( 0, 0 )
+      , ( -1, 0 )
+      ]
+    )
 
 
 
@@ -144,7 +160,6 @@ update msg model =
                         _ ->
                             Down
             in
-                -- checkCollision model.fallenTiles << transform
                 updateCurrentFigurePosition model direction
 
 
@@ -153,11 +168,14 @@ updateCurrentFigure model =
     let
         ( newPosition, element ) =
             updatePosition model.currentFigure Down model.fallenTiles
+
+        ( _, ( color, _ ) ) =
+            model.currentFigure
     in
         if newPosition == first model.currentFigure then
             ( { model
                 | currentFigure = ( ( 6, 0 ), model.nextFigure )
-                , fallenTiles = Set.union model.fallenTiles <| Set.fromList <| elementPositions model.currentFigure
+                , fallenTiles = Set.union model.fallenTiles <| Set.fromList <| elementTiles model.currentFigure
               }
             , Random.generate NewFigure (Random.int 1 4)
             )
@@ -194,7 +212,7 @@ updateCurrentFigurePosition model direction =
     )
 
 
-updatePosition : PositionedElement -> Direction -> Set Position -> PositionedElement
+updatePosition : PositionedElement -> Direction -> Set Tile -> PositionedElement
 updatePosition positionedElement direction fallenTiles =
     let
         newPositionedElement =
@@ -219,7 +237,7 @@ moveElement ( position, element ) direction =
             ( moveDown position, element )
 
 
-elementCanMoveDown : PositionedElement -> Set Position -> Bool
+elementCanMoveDown : PositionedElement -> Set Tile -> Bool
 elementCanMoveDown ( position, element ) fallenTiles =
     (not <| elementExceedsBoard ( position, element ))
         && not (elementOnFallenTile ( position, element ) fallenTiles)
@@ -227,28 +245,24 @@ elementCanMoveDown ( position, element ) fallenTiles =
 
 elementExceedsBoard : PositionedElement -> Bool
 elementExceedsBoard positionedElement =
-    any (\( x, y ) -> y >= 18 || x < 0 || x > 11) <| elementPositions positionedElement
+    any (\( x, y ) -> y >= 18 || x < 0 || x > 11) <| List.map first <| elementTiles positionedElement
 
 
-elementOnFallenTile : PositionedElement -> Set Position -> Bool
+elementOnFallenTile : PositionedElement -> Set Tile -> Bool
 elementOnFallenTile positionedElements fallenTiles =
-    0 < (Set.size <| Set.intersect fallenTiles <| Set.fromList <| elementPositions positionedElements)
+    let
+        elementPositions =
+            Set.fromList <| List.map first <| elementTiles positionedElements
+
+        tilePositions =
+            Set.map first <| fallenTiles
+    in
+        0 < (Set.size <| Set.intersect tilePositions <| elementPositions)
 
 
+none : (a -> Bool) -> List a -> Bool
 none fn ls =
     not <| any fn ls
-
-
-tryMoveElementLeft : PositionedElement -> PositionedElement
-tryMoveElementLeft positionedElement =
-    let
-        newPositionedElement =
-            moveElementLeft positionedElement
-    in
-        if none (\( x, _ ) -> x < 0) <| elementPositions newPositionedElement then
-            newPositionedElement
-        else
-            positionedElement
 
 
 moveElementLeft : PositionedElement -> PositionedElement
@@ -261,9 +275,9 @@ addPositions p1 p2 =
     ( (first p1) + (first p2), (Tuple.second p1) + (Tuple.second p2) )
 
 
-elementPositions : PositionedElement -> List Position
-elementPositions ( position, element ) =
-    List.map (\p -> addPositions p position) element
+elementTiles : PositionedElement -> List Tile
+elementTiles ( position, ( color, elements ) ) =
+    List.map (\p -> ( addPositions p position, color )) elements
 
 
 
@@ -302,25 +316,24 @@ board model =
         ]
 
 
-nextFigure : Figure -> Html.Html Msg
-nextFigure figure =
+nextFigure : Shape -> Html.Html Msg
+nextFigure ( color, elements ) =
     svg
         []
         [ g
             [ transform "translate(20 20)"
             , stroke "LightSeaGreen"
             ]
-            (List.map tile figure)
+            (List.map (\position -> tile ( position, color )) elements)
         ]
 
 
 figure : PositionedElement -> Svg Msg
-figure ( position, elements ) =
+figure ( position, ( color, elements ) ) =
     g
         [ transform (interpolate "translate({0})" [ toPositionString position ])
-        , stroke "LightSeaGreen"
         ]
-        (List.map tile elements)
+        (List.map (\position -> tile ( position, color )) elements)
 
 
 toPositionString : Position -> String
@@ -329,15 +342,15 @@ toPositionString position =
         [ (toString <| 10 * first position), (toString <| 10 * Tuple.second position) ]
 
 
-tiles : Set Position -> Svg Msg
-tiles ts =
+tiles : Set Tile -> Svg Msg
+tiles elements =
     g
-        [ stroke "crimson" ]
-        (List.map tile <| Set.toList ts)
+        []
+        (List.map tile <| Set.toList elements)
 
 
-tile : Position -> Svg Msg
-tile position =
+tile : Tile -> Svg Msg
+tile ( position, color ) =
     rect
-        [ x (toString <| 10 * first position), y (toString <| 10 * Tuple.second position), width "8", height "8", fill "white" ]
+        [ x (toString <| 10 * first position), y (toString <| 10 * Tuple.second position), width "8", height "8", fill "white", stroke color ]
         []
