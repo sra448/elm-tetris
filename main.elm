@@ -41,32 +41,28 @@ type alias Figure = List Position
 type alias PositionedElement = ( Position, Figure )
 
 
-type Figures =
-  LThingy | ZThingy
-
-
 init : (Model, Cmd Msg)
 init =
   ({ time = 0
   , currentFigure = ( ( 6, 0 ), zThingy )
   , nextFigure = lThingy
   , fallenTiles = Set.empty
-  }, Cmd.none)
+  }, Random.generate NewFigure (Random.int 1 4))
 
 
 moveDown : Position -> Position
-moveDown position =
-  ( (first position), (Tuple.second position) + 1 )
+moveDown ( x, y ) =
+  ( x, y + 1 )
 
 
 moveRight : Position -> Position
-moveRight position =
-  ( (first position) + 1, (Tuple.second position) )
+moveRight ( x, y ) =
+  ( x + 1, y )
 
 
 moveLeft : Position -> Position
-moveLeft position =
-  ( (first position) - 1, (Tuple.second position) )
+moveLeft ( x, y ) =
+  ( x - 1, y )
 
 
 lThingy : List Position
@@ -103,12 +99,6 @@ blockThingy =
   , ( 0, 0 )
   , ( -1, 0 )
   ]
-
-
-toPositionString : Position -> String
-toPositionString position =
-  interpolate "{0} {1}"
-    [(toString <| 10 * first position), (toString <| 10 * Tuple.second position)]
 
 
 
@@ -311,6 +301,12 @@ figure ( position, elements ) =
     , stroke "LightSeaGreen"
     ]
     (List.map tile elements)
+
+
+toPositionString : Position -> String
+toPositionString position =
+  interpolate "{0} {1}"
+    [(toString <| 10 * first position), (toString <| 10 * Tuple.second position)]
 
 
 tiles : Set Position -> Svg Msg
