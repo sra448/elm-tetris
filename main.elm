@@ -3,6 +3,7 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import String.Interpolate exposing(interpolate)
 import Time exposing (Time, second)
+import List exposing (..)
 import Tuple exposing (..)
 import Set exposing (..)
 import Random exposing (..)
@@ -128,7 +129,7 @@ update msg model =
     NewFigure nr ->
       updateNextFigure model nr
     Presses code ->
-      Debug.log (toString code) <| updateCurrentFigurePosition model code
+      updateCurrentFigurePosition model code
 
 
 
@@ -161,15 +162,15 @@ updateCurrentFigurePosition model code =
   case code of
     37 ->
       ({ model |
-        currentFigure = moveElementLeft model.currentFigure
+        currentFigure = tryMoveElementLeft model.currentFigure
       }, Cmd.none)
     39 ->
       ({ model |
-        currentFigure = moveElementRight model.currentFigure
+        currentFigure = tryMoveElementRight model.currentFigure
       }, Cmd.none)
     40 ->
       ({ model |
-        currentFigure = moveElementDown model.currentFigure
+        currentFigure = tryMoveElementDown model.currentFigure model.fallenTiles
       }, Cmd.none)
     _ ->
       (model, Cmd.none)
@@ -178,7 +179,13 @@ updateCurrentFigurePosition model code =
 
 elementCanMoveDown : PositionedElement -> Set Position -> Bool
 elementCanMoveDown (position, element) fallenTiles =
-  (Tuple.second position) < 18 && (elementOnFallenTile (position, element) fallenTiles)
+  (not <| elementExceedsBoard (position, element))
+    && (elementOnFallenTile (position, element) fallenTiles)
+
+
+elementExceedsBoard : PositionedElement -> Bool
+elementExceedsBoard positionedElement =
+  any (\(_, y) -> y >= 17) <| elementPositions positionedElement
 
 
 elementOnFallenTile : PositionedElement -> Set Position -> Bool
@@ -186,14 +193,50 @@ elementOnFallenTile  currentElement fallenTiles =
   0 == (Set.size <| Set.intersect fallenTiles <| Set.fromList <| elementPositions <| moveElementDown currentElement)
 
 
+tryMoveElementDown : PositionedElement -> Set Position -> PositionedElement
+tryMoveElementDown positionedElement fallenTiles =
+  let
+    newPositionedElement = moveElementDown positionedElement
+  in
+    if elementCanMoveDown positionedElement fallenTiles then
+      newPositionedElement
+    else
+      positionedElement
+
+
 moveElementDown : PositionedElement -> PositionedElement
 moveElementDown (position, element) =
   ( (moveDown position), element )
 
 
+tryMoveElementRight : PositionedElement -> PositionedElement
+tryMoveElementRight positionedElement =
+  let
+    newPositionedElement = moveElementRight positionedElement
+  in
+    if none (\(x, _) -> x > 11) <| elementPositions newPositionedElement then
+      newPositionedElement
+    else
+      positionedElement
+
+
 moveElementRight : PositionedElement -> PositionedElement
 moveElementRight (position, element) =
   ( (moveRight position), element )
+
+
+none fn ls = not <| any fn ls
+
+
+tryMoveElementLeft : PositionedElement -> PositionedElement
+tryMoveElementLeft positionedElement =
+  let
+    newPositionedElement = moveElementLeft positionedElement
+  in
+    if none (\(x, _) -> x < 0) <| elementPositions newPositionedElement then
+      newPositionedElement
+    else
+      positionedElement
 
 
 moveElementLeft : PositionedElement -> PositionedElement
