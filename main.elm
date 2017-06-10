@@ -88,10 +88,10 @@ moveLeft ( x, y ) =
 lThingy : Shape
 lThingy =
     ( "crimson"
-    , [ ( -1, 0 )
-      , ( 0, 0 )
+    , [ ( -1, -1 )
+      , ( 0, -1 )
+      , ( 1, -1 )
       , ( 1, 0 )
-      , ( 1, 1 )
       ]
     )
 
@@ -99,10 +99,10 @@ lThingy =
 zThingy : Shape
 zThingy =
     ( "coral"
-    , [ ( -1, -2 )
-      , ( 0, -2 )
+    , [ ( -1, -1 )
       , ( 0, -1 )
-      , ( 1, -1 )
+      , ( 0, 0 )
+      , ( 1, 0 )
       ]
     )
 
@@ -110,10 +110,10 @@ zThingy =
 iThingy : Shape
 iThingy =
     ( "lightseagreen"
-    , [ ( 0, -2 )
-      , ( 0, -1 )
-      , ( 0, 0 )
-      , ( 0, 1 )
+    , [ ( -1, -2 )
+      , ( -1, -1 )
+      , ( -1, 0 )
+      , ( -1, 1 )
       ]
     )
 
@@ -127,6 +127,111 @@ blockThingy =
       , ( -1, 0 )
       ]
     )
+
+
+rotateShape : Shape -> Shape
+rotateShape ( color, positions ) =
+    case color of
+        "crimson" ->
+            ( color, List.map (rotateEven) <| positions )
+
+        "lightseagreen" ->
+            ( color, List.map (rotateEven) <| positions )
+
+        "coral" ->
+            ( color, List.map (rotateUneven) <| positions )
+
+        _ ->
+            ( color, List.map (rotateUneven) <| positions )
+
+
+rotateEven : Position -> Position
+rotateEven position =
+    case position of
+        ( -2, -2 ) ->
+            ( 1, -2 )
+
+        ( -1, -2 ) ->
+            ( 1, -1 )
+
+        ( 0, -2 ) ->
+            ( 1, 0 )
+
+        ( 1, -2 ) ->
+            ( 1, 1 )
+
+        ( -2, -1 ) ->
+            ( 0, -2 )
+
+        ( -1, -1 ) ->
+            ( 0, -1 )
+
+        ( 0, -1 ) ->
+            ( 0, 0 )
+
+        ( 1, -1 ) ->
+            ( 0, 1 )
+
+        ( -2, 0 ) ->
+            ( -1, -2 )
+
+        ( -1, 0 ) ->
+            ( -1, -1 )
+
+        ( 0, 0 ) ->
+            ( -1, 0 )
+
+        ( 1, 0 ) ->
+            ( -1, 1 )
+
+        ( -2, 1 ) ->
+            ( -2, -2 )
+
+        ( -1, 1 ) ->
+            ( -2, -1 )
+
+        ( 0, 1 ) ->
+            ( -2, 0 )
+
+        ( 1, 1 ) ->
+            ( -2, 1 )
+
+        ( a, b ) ->
+            ( a, b )
+
+
+rotateUneven : Position -> Position
+rotateUneven position =
+    case position of
+        ( -1, -1 ) ->
+            ( 1, -1 )
+
+        ( 0, -1 ) ->
+            ( 1, 0 )
+
+        ( 1, -1 ) ->
+            ( 1, 1 )
+
+        ( -1, 0 ) ->
+            ( 0, -1 )
+
+        ( 0, 0 ) ->
+            ( 0, 0 )
+
+        ( 1, 0 ) ->
+            ( 0, 1 )
+
+        ( -1, 1 ) ->
+            ( -1, -1 )
+
+        ( 0, 1 ) ->
+            ( -1, 0 )
+
+        ( 1, 1 ) ->
+            ( -1, 1 )
+
+        ( a, b ) ->
+            ( a, b )
 
 
 
@@ -163,7 +268,10 @@ update msg model =
                             _ ->
                                 Down
                 in
-                    updateCurrentFigurePosition model direction
+                    if code == 32 then
+                        ( { model | currentFigure = ( first model.currentFigure, rotateShape <| Tuple.second model.currentFigure ) }, Cmd.none )
+                    else
+                        updateCurrentFigurePosition model direction
     else
         ( model, Cmd.none )
 
