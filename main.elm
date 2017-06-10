@@ -10,6 +10,7 @@ import Tuple exposing (..)
 import Set exposing (..)
 import Random exposing (..)
 import Keyboard exposing (..)
+import Tetromino exposing (..)
 
 
 main =
@@ -27,30 +28,14 @@ main =
 
 type alias Model =
     { currentFigure : PositionedElement
-    , nextFigure : Shape
+    , nextFigure : Tetromino
     , fallenTiles : Set Tile
     , gameLost : Bool
     }
 
 
-type alias Position =
-    ( Int, Int )
-
-
-type alias Tile =
-    ( Position, Color )
-
-
-type alias Shape =
-    ( Color, List Position )
-
-
-type alias Color =
-    String
-
-
 type alias PositionedElement =
-    ( Position, Shape )
+    ( Position, Tetromino )
 
 
 type Direction
@@ -61,177 +46,13 @@ type Direction
 
 init : ( Model, Cmd Msg )
 init =
-    ( { currentFigure = ( ( 6, 0 ), zThingy )
-      , nextFigure = lThingy
+    ( { currentFigure = ( ( 6, 0 ), zTetromino )
+      , nextFigure = lTetromino
       , fallenTiles = Set.empty
       , gameLost = False
       }
-    , Random.generate NewFigure (Random.int 1 4)
+    , Random.generate NewFigure randomBlock
     )
-
-
-moveDown : Position -> Position
-moveDown ( x, y ) =
-    ( x, y + 1 )
-
-
-moveRight : Position -> Position
-moveRight ( x, y ) =
-    ( x + 1, y )
-
-
-moveLeft : Position -> Position
-moveLeft ( x, y ) =
-    ( x - 1, y )
-
-
-lThingy : Shape
-lThingy =
-    ( "crimson"
-    , [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 1, -1 )
-      , ( 1, 0 )
-      ]
-    )
-
-
-zThingy : Shape
-zThingy =
-    ( "coral"
-    , [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 0, 0 )
-      , ( 1, 0 )
-      ]
-    )
-
-
-iThingy : Shape
-iThingy =
-    ( "lightseagreen"
-    , [ ( -1, -2 )
-      , ( -1, -1 )
-      , ( -1, 0 )
-      , ( -1, 1 )
-      ]
-    )
-
-
-blockThingy : Shape
-blockThingy =
-    ( "crimson"
-    , [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 0, 0 )
-      , ( -1, 0 )
-      ]
-    )
-
-
-rotateShape : Shape -> Shape
-rotateShape ( color, positions ) =
-    case color of
-        "crimson" ->
-            ( color, List.map (rotateEven) <| positions )
-
-        "lightseagreen" ->
-            ( color, List.map (rotateEven) <| positions )
-
-        "coral" ->
-            ( color, List.map (rotateUneven) <| positions )
-
-        _ ->
-            ( color, List.map (rotateUneven) <| positions )
-
-
-rotateEven : Position -> Position
-rotateEven position =
-    case position of
-        ( -2, -2 ) ->
-            ( 1, -2 )
-
-        ( -1, -2 ) ->
-            ( 1, -1 )
-
-        ( 0, -2 ) ->
-            ( 1, 0 )
-
-        ( 1, -2 ) ->
-            ( 1, 1 )
-
-        ( -2, -1 ) ->
-            ( 0, -2 )
-
-        ( -1, -1 ) ->
-            ( 0, -1 )
-
-        ( 0, -1 ) ->
-            ( 0, 0 )
-
-        ( 1, -1 ) ->
-            ( 0, 1 )
-
-        ( -2, 0 ) ->
-            ( -1, -2 )
-
-        ( -1, 0 ) ->
-            ( -1, -1 )
-
-        ( 0, 0 ) ->
-            ( -1, 0 )
-
-        ( 1, 0 ) ->
-            ( -1, 1 )
-
-        ( -2, 1 ) ->
-            ( -2, -2 )
-
-        ( -1, 1 ) ->
-            ( -2, -1 )
-
-        ( 0, 1 ) ->
-            ( -2, 0 )
-
-        ( 1, 1 ) ->
-            ( -2, 1 )
-
-        ( a, b ) ->
-            ( a, b )
-
-
-rotateUneven : Position -> Position
-rotateUneven position =
-    case position of
-        ( -1, -1 ) ->
-            ( 1, -1 )
-
-        ( 0, -1 ) ->
-            ( 1, 0 )
-
-        ( 1, -1 ) ->
-            ( 1, 1 )
-
-        ( -1, 0 ) ->
-            ( 0, -1 )
-
-        ( 0, 0 ) ->
-            ( 0, 0 )
-
-        ( 1, 0 ) ->
-            ( 0, 1 )
-
-        ( -1, 1 ) ->
-            ( -1, -1 )
-
-        ( 0, 1 ) ->
-            ( -1, 0 )
-
-        ( 1, 1 ) ->
-            ( -1, 1 )
-
-        ( a, b ) ->
-            ( a, b )
 
 
 
@@ -240,7 +61,7 @@ rotateUneven position =
 
 type Msg
     = Tick Time
-    | NewFigure Int
+    | NewFigure Tetromino
     | Presses Int
 
 
@@ -251,8 +72,8 @@ update msg model =
             Tick newTime ->
                 checkGameLost <| updateCurrentFigure model
 
-            NewFigure nr ->
-                updateNextFigure model nr
+            NewFigure shape ->
+                updateNextFigure model shape
 
             Presses code ->
                 let
@@ -290,7 +111,7 @@ updateCurrentFigure model =
                 | currentFigure = ( ( 6, 0 ), model.nextFigure )
                 , fallenTiles = Set.union model.fallenTiles <| Set.fromList <| elementTiles model.currentFigure
               }
-            , Random.generate NewFigure (Random.int 1 4)
+            , Random.generate NewFigure randomBlock
             )
         else
             ( { model
@@ -312,20 +133,9 @@ checkGameLost ( model, msg ) =
         ( model, msg )
 
 
-updateNextFigure : Model -> Int -> ( Model, Cmd Msg )
-updateNextFigure model nr =
-    case nr of
-        1 ->
-            ( { model | nextFigure = zThingy }, Cmd.none )
-
-        2 ->
-            ( { model | nextFigure = blockThingy }, Cmd.none )
-
-        3 ->
-            ( { model | nextFigure = iThingy }, Cmd.none )
-
-        _ ->
-            ( { model | nextFigure = lThingy }, Cmd.none )
+updateNextFigure : Model -> Tetromino -> ( Model, Cmd Msg )
+updateNextFigure model shape =
+    ( { model | nextFigure = shape }, Cmd.none )
 
 
 updateCurrentFigurePosition : Model -> Direction -> ( Model, Cmd Msg )
@@ -401,7 +211,7 @@ addPositions p1 p2 =
 
 
 elementTiles : PositionedElement -> List Tile
-elementTiles ( position, ( color, elements ) ) =
+elementTiles ( position, ( elements, color ) ) =
     List.map (\p -> ( addPositions p position, color )) elements
 
 
@@ -441,8 +251,8 @@ board model =
         ]
 
 
-nextFigure : Shape -> Html.Html Msg
-nextFigure ( color, elements ) =
+nextFigure : Tetromino -> Html.Html Msg
+nextFigure ( elements, color ) =
     svg
         []
         [ g
@@ -454,7 +264,7 @@ nextFigure ( color, elements ) =
 
 
 figure : PositionedElement -> Svg Msg
-figure ( position, ( color, elements ) ) =
+figure ( position, ( elements, color ) ) =
     g
         [ transform (interpolate "translate({0})" [ toPositionString position ])
         ]
