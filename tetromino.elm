@@ -17,12 +17,19 @@ type alias Tile =
     ( Position, Color )
 
 
-type alias Tetromino =
-    ( List Position, Color )
-
-
 type alias Color =
     String
+
+
+type alias Shape =
+    List Position
+
+
+type Tetromino
+    = ZTetromino Shape Color
+    | ITetromino Shape Color
+    | OTetromino Shape Color
+    | LTetromino Shape Color
 
 
 moveDown : Position -> Position
@@ -63,62 +70,78 @@ blockById i =
 
 lTetromino : Tetromino
 lTetromino =
-    ( [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 1, -1 )
-      , ( 1, 0 )
-      ]
-    , "crimson"
-    )
+    LTetromino
+        [ ( -1, -1 )
+        , ( 0, -1 )
+        , ( 1, -1 )
+        , ( 1, 0 )
+        ]
+        "crimson"
 
 
 zTetromino : Tetromino
 zTetromino =
-    ( [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 0, 0 )
-      , ( 1, 0 )
-      ]
-    , "coral"
-    )
+    ZTetromino
+        [ ( -1, -1 )
+        , ( 0, -1 )
+        , ( 0, 0 )
+        , ( 1, 0 )
+        ]
+        "coral"
 
 
 iTetromino : Tetromino
 iTetromino =
-    ( [ ( -1, -2 )
-      , ( -1, -1 )
-      , ( -1, 0 )
-      , ( -1, 1 )
-      ]
-    , "lightseagreen"
-    )
+    ITetromino
+        [ ( -1, -2 )
+        , ( -1, -1 )
+        , ( -1, 0 )
+        , ( -1, 1 )
+        ]
+        "lightseagreen"
 
 
 oTetromino : Tetromino
 oTetromino =
-    ( [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 0, 0 )
-      , ( -1, 0 )
-      ]
-    , "goldenrod"
-    )
+    OTetromino
+        [ ( -1, -1 )
+        , ( 0, -1 )
+        , ( 0, 0 )
+        , ( -1, 0 )
+        ]
+        "goldenrod"
+
+
+properties : Tetromino -> ( Shape, Color )
+properties tetromino =
+    case tetromino of
+        OTetromino positions color ->
+            ( positions, color )
+
+        ITetromino positions color ->
+            ( positions, color )
+
+        ZTetromino positions color ->
+            ( positions, color )
+
+        LTetromino positions color ->
+            ( positions, color )
 
 
 rotateShape : Tetromino -> Tetromino
-rotateShape ( positions, color ) =
-    case color of
-        "crimson" ->
-            ( List.map (rotateEven) <| positions, color )
+rotateShape tetromino =
+    case tetromino of
+        OTetromino positions color ->
+            OTetromino (List.map rotateEven <| positions) color
 
-        "lightseagreen" ->
-            ( List.map (rotateEven) <| positions, color )
+        ITetromino positions color ->
+            ITetromino (List.map rotateEven <| positions) color
 
-        "coral" ->
-            ( List.map (rotateUneven) <| positions, color )
+        ZTetromino positions color ->
+            ZTetromino (List.map rotateUneven <| positions) color
 
-        _ ->
-            ( List.map (rotateUneven) <| positions, color )
+        LTetromino positions color ->
+            LTetromino (List.map (rotateUneven) <| positions) color
 
 
 rotateEven : Position -> Position

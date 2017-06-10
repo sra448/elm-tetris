@@ -103,8 +103,11 @@ updateCurrentFigure model =
         ( newPosition, element ) =
             updatePosition model.currentFigure Down model.fallenTiles
 
-        ( _, ( color, _ ) ) =
+        ( _, tetromino ) =
             model.currentFigure
+
+        ( _, color ) =
+            properties tetromino
     in
         if newPosition == first model.currentFigure then
             ( { model
@@ -211,8 +214,12 @@ addPositions p1 p2 =
 
 
 elementTiles : PositionedElement -> List Tile
-elementTiles ( position, ( elements, color ) ) =
-    List.map (\p -> ( addPositions p position, color )) elements
+elementTiles ( position, tetromino ) =
+    let
+        ( positions, color ) =
+            properties tetromino
+    in
+        List.map (\p -> ( addPositions p position, color )) positions
 
 
 
@@ -252,23 +259,31 @@ board model =
 
 
 nextFigure : Tetromino -> Html.Html Msg
-nextFigure ( elements, color ) =
-    svg
-        []
-        [ g
-            [ transform "translate(20 20)"
-            , stroke "LightSeaGreen"
+nextFigure tetromino =
+    let
+        ( positions, color ) =
+            properties tetromino
+    in
+        svg
+            []
+            [ g
+                [ transform "translate(20 20)"
+                , stroke "LightSeaGreen"
+                ]
+                (List.map (\position -> tile ( position, color )) positions)
             ]
-            (List.map (\position -> tile ( position, color )) elements)
-        ]
 
 
 figure : PositionedElement -> Svg Msg
-figure ( position, ( elements, color ) ) =
-    g
-        [ transform (interpolate "translate({0})" [ toPositionString position ])
-        ]
-        (List.map (\position -> tile ( position, color )) elements)
+figure ( position, tetromino ) =
+    let
+        ( positions, color ) =
+            properties tetromino
+    in
+        g
+            [ transform (interpolate "translate({0})" [ toPositionString position ])
+            ]
+            (List.map (\position -> tile ( position, color )) positions)
 
 
 toPositionString : Position -> String
