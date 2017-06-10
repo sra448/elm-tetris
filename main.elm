@@ -29,6 +29,7 @@ type alias Model =
     { currentFigure : PositionedElement
     , nextFigure : Shape
     , fallenTiles : Set Tile
+    , gameLost : Bool
     }
 
 
@@ -63,6 +64,7 @@ init =
     ( { currentFigure = ( ( 6, 0 ), zThingy )
       , nextFigure = lThingy
       , fallenTiles = Set.empty
+      , gameLost = False
       }
     , Random.generate NewFigure (Random.int 1 4)
     )
@@ -139,28 +141,31 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Tick newTime ->
-            updateCurrentFigure model
+    if not model.gameLost then
+        case msg of
+            Tick newTime ->
+                checkGameLost <| updateCurrentFigure model
 
-        NewFigure nr ->
-            updateNextFigure model nr
+            NewFigure nr ->
+                updateNextFigure model nr
 
-        Presses code ->
-            let
-                direction =
-                    case code of
-                        37 ->
-                            Left
+            Presses code ->
+                let
+                    direction =
+                        case code of
+                            37 ->
+                                Left
 
-                        39 ->
-                            Right
+                            39 ->
+                                Right
 
-                        -- this is bad
-                        _ ->
-                            Down
-            in
-                updateCurrentFigurePosition model direction
+                            -- this is bad
+                            _ ->
+                                Down
+                in
+                    updateCurrentFigurePosition model direction
+    else
+        ( model, Cmd.none )
 
 
 updateCurrentFigure : Model -> ( Model, Cmd Msg )
@@ -185,6 +190,18 @@ updateCurrentFigure model =
               }
             , Cmd.none
             )
+
+
+checkGameLost : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+checkGameLost ( model, msg ) =
+    if any (\( ( _, y ), _ ) -> y < 0) <| Set.toList model.fallenTiles then
+        ( { model
+            | gameLost = True
+          }
+        , msg
+        )
+    else
+        ( model, msg )
 
 
 updateNextFigure : Model -> Int -> ( Model, Cmd Msg )
