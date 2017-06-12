@@ -27,9 +27,12 @@ type alias Shape =
 
 type Tetromino
     = ZTetromino Shape Color
+    | STetromino Shape Color
+    | TTetromino Shape Color
     | ITetromino Shape Color
     | OTetromino Shape Color
     | LTetromino Shape Color
+    | JTetromino Shape Color
 
 
 moveDown : Position -> Position
@@ -49,7 +52,7 @@ moveLeft ( x, y ) =
 
 randomBlock : Generator Tetromino
 randomBlock =
-    Random.map blockById <| Random.int 1 4
+    Random.map blockById <| Random.int 1 6
 
 
 blockById : Int -> Tetromino
@@ -63,6 +66,15 @@ blockById i =
 
         3 ->
             iTetromino
+
+        4 ->
+            sTetromino
+
+        5 ->
+            tTetromino
+
+        6 ->
+            jTetromino
 
         _ ->
             oTetromino
@@ -79,6 +91,17 @@ lTetromino =
         "crimson"
 
 
+jTetromino : Tetromino
+jTetromino =
+    JTetromino
+        [ ( 1, 1 )
+        , ( 0, -1 )
+        , ( 1, -1 )
+        , ( 1, 0 )
+        ]
+        "teal"
+
+
 zTetromino : Tetromino
 zTetromino =
     ZTetromino
@@ -88,6 +111,28 @@ zTetromino =
         , ( 1, 0 )
         ]
         "coral"
+
+
+sTetromino : Tetromino
+sTetromino =
+    STetromino
+        [ ( -1, -1 )
+        , ( 0, 0 )
+        , ( 0, -1 )
+        , ( 1, -1 )
+        ]
+        "palevioletred"
+
+
+tTetromino : Tetromino
+tTetromino =
+    TTetromino
+        [ ( -1, 0 )
+        , ( 0, 0 )
+        , ( 0, -1 )
+        , ( 1, -1 )
+        ]
+        "olivedrab"
 
 
 iTetromino : Tetromino
@@ -124,7 +169,16 @@ properties tetromino =
         ZTetromino positions color ->
             ( positions, color )
 
+        STetromino positions color ->
+            ( positions, color )
+
+        TTetromino positions color ->
+            ( positions, color )
+
         LTetromino positions color ->
+            ( positions, color )
+
+        JTetromino positions color ->
             ( positions, color )
 
 
@@ -137,10 +191,19 @@ rotateShape tetromino =
         ITetromino positions color ->
             ITetromino (List.map rotateEven <| positions) color
 
+        STetromino positions color ->
+            ZTetromino (List.map rotateUneven <| positions) color
+
         ZTetromino positions color ->
             ZTetromino (List.map rotateUneven <| positions) color
 
+        TTetromino positions color ->
+            ZTetromino (List.map rotateUneven <| positions) color
+
         LTetromino positions color ->
+            LTetromino (List.map (rotateUneven) <| positions) color
+
+        JTetromino positions color ->
             LTetromino (List.map (rotateUneven) <| positions) color
 
 
