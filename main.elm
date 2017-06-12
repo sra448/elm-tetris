@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Html exposing (..)
+import Html.Attributes exposing (style)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import String.Interpolate exposing (interpolate)
@@ -24,6 +25,18 @@ main =
 
 
 -- MODEL
+
+
+tileWidth =
+    20
+
+
+boardWidth =
+    12
+
+
+boardHeight =
+    18
 
 
 type alias Model =
@@ -76,23 +89,7 @@ update msg model =
                 updateNextFigure model shape
 
             Presses code ->
-                let
-                    direction =
-                        case code of
-                            37 ->
-                                Left
-
-                            39 ->
-                                Right
-
-                            -- this is bad
-                            _ ->
-                                Down
-                in
-                    if code == 32 then
-                        ( { model | currentFigure = ( first model.currentFigure, rotateShape <| Tuple.second model.currentFigure ) }, Cmd.none )
-                    else
-                        updateCurrentFigurePosition model direction
+                updateFigureByUser model code
     else
         ( model, Cmd.none )
 
@@ -122,6 +119,26 @@ updateCurrentFigure model =
               }
             , Cmd.none
             )
+
+
+updateFigureByUser : Model -> Int -> ( Model, Cmd Msg )
+updateFigureByUser model code =
+    let
+        direction =
+            case code of
+                37 ->
+                    Left
+
+                39 ->
+                    Right
+
+                _ ->
+                    Down
+    in
+        if code == 32 then
+            ( { model | currentFigure = ( first model.currentFigure, rotateShape <| Tuple.second model.currentFigure ) }, Cmd.none )
+        else
+            updateCurrentFigurePosition model direction
 
 
 checkGameLost : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -183,7 +200,7 @@ elementCanMoveDown ( position, element ) fallenTiles =
 
 elementExceedsBoard : PositionedElement -> Bool
 elementExceedsBoard positionedElement =
-    any (\( x, y ) -> y >= 18 || x < 0 || x > 11) <| List.map first <| elementTiles positionedElement
+    any (\( x, y ) -> y >= boardHeight || x < 0 || x >= boardWidth) <| List.map first <| elementTiles positionedElement
 
 
 elementOnFallenTile : PositionedElement -> Set Tile -> Bool
@@ -241,7 +258,7 @@ subscriptions model =
 view : Model -> Html.Html Msg
 view model =
     div
-        []
+        [ Html.Attributes.style [ ( "padding", "20" ) ] ]
         [ Html.text "ELM Tetris"
         , board model
         , nextFigure model.nextFigure
@@ -250,12 +267,19 @@ view model =
 
 board : Model -> Html.Html Msg
 board model =
-    svg
-        [ width "120", height "180" ]
-        [ figure model.currentFigure
-        , tiles model.fallenTiles
-        , rect [ x "0", y "0", width "120", height "180", fill "none", stroke "black" ] []
-        ]
+    let
+        w =
+            toString <| boardWidth * tileWidth
+
+        h =
+            toString <| boardHeight * tileWidth
+    in
+        svg
+            [ width w, height h ]
+            [ figure model.currentFigure
+            , tiles model.fallenTiles
+            , rect [ x "0", y "0", width w, height h, fill "none", stroke "mediumslateblue", strokeWidth "2" ] []
+            ]
 
 
 nextFigure : Tetromino -> Html.Html Msg
@@ -267,29 +291,22 @@ nextFigure tetromino =
         svg
             []
             [ g
-                [ transform "translate(20 20)"
-                , stroke "LightSeaGreen"
-                ]
+                [ transform "translate(20 20)" ]
                 (List.map (\position -> tile ( position, color )) positions)
             ]
 
 
 figure : PositionedElement -> Svg Msg
-figure ( position, tetromino ) =
-    let
-        ( positions, color ) =
-            properties tetromino
-    in
-        g
-            [ transform (interpolate "translate({0})" [ toPositionString position ])
-            ]
-            (List.map (\position -> tile ( position, color )) positions)
+figure positionedElement =
+    g
+        []
+        (List.map tile <| elementTiles positionedElement)
 
 
 toPositionString : Position -> String
 toPositionString position =
     interpolate "{0} {1}"
-        [ (toString <| 10 * first position), (toString <| 10 * Tuple.second position) ]
+        [ (toString <| tileWidth * first position), (toString <| tileWidth * Tuple.second position) ]
 
 
 tiles : Set Tile -> Svg Msg
@@ -301,6 +318,30 @@ tiles elements =
 
 tile : Tile -> Svg Msg
 tile ( position, color ) =
-    rect
-        [ x (toString <| 10 * first position), y (toString <| 10 * Tuple.second position), width "8", height "8", fill "white", stroke color ]
-        []
+    g
+        [ fill "white", stroke color, strokeWidth "2" ]
+        [ rect
+            [ x (toString <| tileWidth * (toFloat <| first position) + (tileWidth * 0.1))
+            , y (toString <| tileWidth * (toFloat <| Tuple.second position) + (tileWidth * 0.1))
+            , width (toString <| tileWidth - (tileWidth * 0.2))
+            , height (toString <| tileWidth - (tileWidth * 0.2))
+            ]
+            []
+        , g
+            [ opacity "0.7" ]
+            [ line
+                [ x1 (toString <| tileWidth * (toFloat <| first position) + tileWidth * 0.3)
+                , y1 (toString <| tileWidth * (toFloat <| Tuple.second position) + tileWidth * 0.7)
+                , x2 (toString <| tileWidth * (toFloat <| first position) + tileWidth * 0.7)
+                , y2 (toString <| tileWidth * (toFloat <| Tuple.second position) + tileWidth * 0.7)
+                ]
+                []
+            , line
+                [ x1 (toString <| tileWidth * (toFloat <| first position) + tileWidth * 0.7)
+                , y1 (toString <| tileWidth * (toFloat <| Tuple.second position) + tileWidth * 0.3)
+                , x2 (toString <| tileWidth * (toFloat <| first position) + tileWidth * 0.7)
+                , y2 (toString <| tileWidth * (toFloat <| Tuple.second position) + tileWidth * 0.7)
+                ]
+                []
+            ]
+        ]
