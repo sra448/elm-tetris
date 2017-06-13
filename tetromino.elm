@@ -52,7 +52,7 @@ moveLeft ( x, y ) =
 
 randomBlock : Generator Tetromino
 randomBlock =
-    Random.map blockById <| Random.int 1 6
+    Random.map blockById <| Random.int 1 7
 
 
 blockById : Int -> Tetromino

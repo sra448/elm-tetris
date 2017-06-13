@@ -7,6 +7,7 @@ import Svg.Attributes exposing (..)
 import String.Interpolate exposing (interpolate)
 import Time exposing (Time, second)
 import List exposing (..)
+import List.Extra exposing (find)
 import Tuple exposing (..)
 import Set exposing (..)
 import Random exposing (..)
@@ -136,9 +137,54 @@ updateFigureByUser model code =
                     Down
     in
         if code == 32 then
-            ( { model | currentFigure = ( first model.currentFigure, rotateShape <| Tuple.second model.currentFigure ) }, Cmd.none )
+            ( { model
+                | currentFigure = rotateCurrentFigure model.currentFigure model.fallenTiles
+              }
+            , Cmd.none
+            )
         else
             updateCurrentFigurePosition model direction
+
+
+rotateCurrentFigure : PositionedElement -> Set Tile -> PositionedElement
+rotateCurrentFigure positionedElement fallenTiles =
+    performWithWallKick (\e -> ( first e, rotateShape <| Tuple.second e )) positionedElement fallenTiles
+
+
+performWithWallKick : (PositionedElement -> PositionedElement) -> PositionedElement -> Set Tile -> PositionedElement
+performWithWallKick transformElement positionedElement fallenTiles =
+    let
+        newPositionedElement =
+            transformElement positionedElement
+
+        offsetRight =
+            moveElement newPositionedElement Right
+
+        offsetLeft =
+            moveElement newPositionedElement Left
+
+        element =
+            find (\e -> Debug.log "is valid?" <| validElementPosition e fallenTiles) <|
+                [ newPositionedElement, offsetRight, offsetLeft ]
+    in
+        case element of
+            Nothing ->
+                positionedElement
+
+            Just a ->
+                a
+
+
+
+-- if elementExceedsBoard newPositionedElement || elementOnFallenTile newPositionedElement fallenTiles then
+--     updatePosition positionedElement Right fallenTiles
+-- else
+--     newPositionedElement
+
+
+validElementPosition : PositionedElement -> Set Tile -> Bool
+validElementPosition positionedElement fallenTiles =
+    not <| elementExceedsBoard positionedElement || elementOnFallenTile positionedElement fallenTiles
 
 
 checkGameLost : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
