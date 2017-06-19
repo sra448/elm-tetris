@@ -44,14 +44,6 @@ type alias Tile =
     ( Position, Color )
 
 
-type alias Model =
-    { currentFigure : PositionedElement
-    , nextFigure : Tetromino
-    , fallenTiles : Set Tile
-    , gameLost : Bool
-    }
-
-
 type alias PositionedElement =
     ( Position, Tetromino )
 
@@ -62,6 +54,14 @@ type Direction
     | Right
 
 
+type alias Model =
+    { currentFigure : PositionedElement
+    , nextFigure : Tetromino
+    , fallenTiles : Set Tile
+    , gameLost : Bool
+    }
+
+
 init : ( Model, Cmd Msg )
 init =
     ( { currentFigure = ( ( 6, 0 ), zTetromino )
@@ -69,7 +69,7 @@ init =
       , fallenTiles = Set.empty
       , gameLost = False
       }
-    , Random.generate NewFigure randomBlock
+    , Random.generate RandomTetromino randomBlock
     )
 
 
@@ -78,25 +78,58 @@ init =
 
 
 type Msg
-    = Tick Time
-    | NewFigure Tetromino
-    | Presses Int
+    = RandomTetromino Tetromino
+    | UserInput Int
+    | Tick Time
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    if not model.gameLost then
-        case msg of
-            Tick newTime ->
-                checkGameLost <| removeFullRows <| updateCurrentFigure model
+    case msg of
+        RandomTetromino shape ->
+            ( { model | nextFigure = shape }, Cmd.none )
 
-            NewFigure shape ->
-                updateNextFigure model shape
+        UserInput code ->
+            ( updateFigureByUser model code, Cmd.none )
 
-            Presses code ->
-                updateFigureByUser model code
-    else
-        ( model, Cmd.none )
+        Tick _ ->
+            checkGameLost <|
+                removeFullRows <|
+                    updateCurrentFigure model
+
+
+updateFigureByUser : Model -> Int -> Model
+updateFigureByUser model code =
+    let
+        direction =
+            case code of
+                37 ->
+                    Left
+
+                39 ->
+                    Right
+
+                _ ->
+                    Down
+    in
+        if code == 32 then
+            { model
+                | currentFigure = rotateCurrentFigure model.currentFigure model.fallenTiles
+            }
+        else
+            { model
+                | currentFigure = updateCurrentFigurePosition model direction
+            }
+
+
+rotateCurrentFigure : PositionedElement -> Set Tile -> PositionedElement
+rotateCurrentFigure positionedElement fallenTiles =
+    performWithWallKick (\e -> ( first e, rotateShape <| Tuple.second e )) positionedElement fallenTiles
+
+
+updateCurrentFigurePosition : Model -> Direction -> PositionedElement
+updateCurrentFigurePosition model direction =
+    updatePosition model.currentFigure direction model.fallenTiles
 
 
 removeFullRows : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -126,11 +159,7 @@ removeFullRows ( model, msg ) =
                 ( 0, Set.empty )
                 (List.reverse rows)
     in
-        ( { model
-            | fallenTiles = fallenTiles
-
-            -- | fallenTiles = List.foldl Set.union Set.empty fallenTiles
-          }
+        ( { model | fallenTiles = fallenTiles }
         , msg
         )
 
@@ -157,7 +186,7 @@ updateCurrentFigure model =
                 | currentFigure = ( ( 6, 0 ), model.nextFigure )
                 , fallenTiles = Set.union model.fallenTiles <| Set.fromList <| elementTiles model.currentFigure
               }
-            , Random.generate NewFigure randomBlock
+            , Random.generate RandomTetromino randomBlock
             )
         else
             ( { model
@@ -165,35 +194,6 @@ updateCurrentFigure model =
               }
             , Cmd.none
             )
-
-
-updateFigureByUser : Model -> Int -> ( Model, Cmd Msg )
-updateFigureByUser model code =
-    let
-        direction =
-            case code of
-                37 ->
-                    Left
-
-                39 ->
-                    Right
-
-                _ ->
-                    Down
-    in
-        if code == 32 then
-            ( { model
-                | currentFigure = rotateCurrentFigure model.currentFigure model.fallenTiles
-              }
-            , Cmd.none
-            )
-        else
-            updateCurrentFigurePosition model direction
-
-
-rotateCurrentFigure : PositionedElement -> Set Tile -> PositionedElement
-rotateCurrentFigure positionedElement fallenTiles =
-    performWithWallKick (\e -> ( first e, rotateShape <| Tuple.second e )) positionedElement fallenTiles
 
 
 performWithWallKick : (PositionedElement -> PositionedElement) -> PositionedElement -> Set Tile -> PositionedElement
@@ -235,20 +235,6 @@ checkGameLost ( model, msg ) =
         )
     else
         ( model, msg )
-
-
-updateNextFigure : Model -> Tetromino -> ( Model, Cmd Msg )
-updateNextFigure model shape =
-    ( { model | nextFigure = shape }, Cmd.none )
-
-
-updateCurrentFigurePosition : Model -> Direction -> ( Model, Cmd Msg )
-updateCurrentFigurePosition model direction =
-    ( { model
-        | currentFigure = updatePosition model.currentFigure direction model.fallenTiles
-      }
-    , Cmd.none
-    )
 
 
 updatePosition : PositionedElement -> Direction -> Set Tile -> PositionedElement
@@ -331,7 +317,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Time.every (Time.second / 2) Tick
-        , Keyboard.downs Presses
+        , Keyboard.downs UserInput
         ]
 
 
