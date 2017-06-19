@@ -4,10 +4,9 @@ import Html exposing (..)
 import Html.Attributes exposing (style)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
-import String.Interpolate exposing (interpolate)
 import Time exposing (Time, second)
 import List exposing (..)
-import List.Extra exposing (find, group)
+import List.Extra exposing (find)
 import Tuple exposing (..)
 import Set exposing (..)
 import Random exposing (..)
@@ -44,7 +43,7 @@ type alias Tile =
     ( Position, Color )
 
 
-type alias PositionedElement =
+type alias Figure =
     ( Position, Tetromino )
 
 
@@ -55,8 +54,8 @@ type Direction
 
 
 type alias Model =
-    { currentFigure : PositionedElement
-    , nextFigure : Tetromino
+    { currentFigure : Figure
+    , nextTetromino : Tetromino
     , fallenTiles : Set Tile
     , gameLost : Bool
     }
@@ -64,12 +63,12 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { currentFigure = ( ( 6, 0 ), zTetromino )
-      , nextFigure = lTetromino
+    ( { currentFigure = ( ( 6, -2 ), zTetromino )
+      , nextTetromino = lTetromino
       , fallenTiles = Set.empty
       , gameLost = False
       }
-    , Random.generate RandomTetromino randomBlock
+    , Random.generate ResetNextTetromino randomBlock
     )
 
 
@@ -78,7 +77,7 @@ init =
 
 
 type Msg
-    = RandomTetromino Tetromino
+    = ResetNextTetromino Tetromino
     | UserInput Int
     | Tick Time
 
@@ -86,50 +85,80 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        RandomTetromino shape ->
-            ( { model | nextFigure = shape }, Cmd.none )
+        ResetNextTetromino tetromino ->
+            ( { model | nextTetromino = tetromino }, Cmd.none )
 
         UserInput code ->
-            ( updateFigureByUser model code, Cmd.none )
+            ( moveCurrentFigure model code, Cmd.none )
 
         Tick _ ->
             checkGameLost <|
                 removeFullRows <|
-                    updateCurrentFigure model
+                    pushDownCurrentFigure model
 
 
-updateFigureByUser : Model -> Int -> Model
-updateFigureByUser model code =
-    let
-        direction =
+moveCurrentFigure : Model -> Int -> Model
+moveCurrentFigure model code =
+    { model
+        | currentFigure =
             case code of
                 37 ->
-                    Left
+                    updatePosition model.currentFigure Left model.fallenTiles
 
                 39 ->
-                    Right
+                    updatePosition model.currentFigure Right model.fallenTiles
+
+                40 ->
+                    updatePosition model.currentFigure Down model.fallenTiles
+
+                32 ->
+                    tryRotateFigure model.currentFigure model.fallenTiles
 
                 _ ->
-                    Down
-    in
-        if code == 32 then
-            { model
-                | currentFigure = rotateCurrentFigure model.currentFigure model.fallenTiles
-            }
-        else
-            { model
-                | currentFigure = updateCurrentFigurePosition model direction
-            }
+                    model.currentFigure
+    }
 
 
-rotateCurrentFigure : PositionedElement -> Set Tile -> PositionedElement
-rotateCurrentFigure positionedElement fallenTiles =
-    performWithWallKick (\e -> ( first e, rotateShape <| Tuple.second e )) positionedElement fallenTiles
+tryRotateFigure : Figure -> Set Tile -> Figure
+tryRotateFigure figure fallenTiles =
+    performWithWallKick
+        (\( position, tetromino ) ->
+            ( position, rotateShape tetromino )
+        )
+        figure
+        fallenTiles
 
 
-updateCurrentFigurePosition : Model -> Direction -> PositionedElement
+updateCurrentFigurePosition : Model -> Direction -> Figure
 updateCurrentFigurePosition model direction =
     updatePosition model.currentFigure direction model.fallenTiles
+
+
+pushDownCurrentFigure : Model -> ( Model, Cmd Msg )
+pushDownCurrentFigure model =
+    let
+        ( position, _ ) =
+            model.currentFigure
+
+        ( newPosition, element ) =
+            updatePosition model.currentFigure Down model.fallenTiles
+    in
+        if newPosition == position then
+            ( { model
+                | currentFigure = ( ( 6, 0 ), model.nextTetromino )
+                , fallenTiles =
+                    Set.union model.fallenTiles <|
+                        Set.fromList <|
+                            tilesOccupiedByFigure model.currentFigure
+              }
+            , Random.generate ResetNextTetromino randomBlock
+            )
+        else
+            ( { model
+                | currentFigure = ( newPosition, element )
+              }
+            , Cmd.none
+            )
 
 
 removeFullRows : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -169,60 +198,35 @@ tilesInRow fallenTiles i =
     Set.filter (\( ( _, y ), _ ) -> y == i) fallenTiles
 
 
-updateCurrentFigure : Model -> ( Model, Cmd Msg )
-updateCurrentFigure model =
+performWithWallKick : (Figure -> Figure) -> Figure -> Set Tile -> Figure
+performWithWallKick transformFn figure fallenTiles =
     let
-        ( newPosition, element ) =
-            updatePosition model.currentFigure Down model.fallenTiles
-
-        ( _, tetromino ) =
-            model.currentFigure
-
-        ( _, color ) =
-            properties tetromino
-    in
-        if newPosition == first model.currentFigure then
-            ( { model
-                | currentFigure = ( ( 6, 0 ), model.nextFigure )
-                , fallenTiles = Set.union model.fallenTiles <| Set.fromList <| elementTiles model.currentFigure
-              }
-            , Random.generate RandomTetromino randomBlock
-            )
-        else
-            ( { model
-                | currentFigure = ( (moveDown (first model.currentFigure)), (Tuple.second model.currentFigure) )
-              }
-            , Cmd.none
-            )
-
-
-performWithWallKick : (PositionedElement -> PositionedElement) -> PositionedElement -> Set Tile -> PositionedElement
-performWithWallKick transformElement positionedElement fallenTiles =
-    let
-        newPositionedElement =
-            transformElement positionedElement
+        newFigure =
+            transformFn figure
 
         offsetRight =
-            moveElement newPositionedElement Right
+            moveElement newFigure Right
 
         offsetLeft =
-            moveElement newPositionedElement Left
+            moveElement newFigure Left
 
         element =
             find (\e -> validElementPosition e fallenTiles) <|
-                [ newPositionedElement, offsetRight, offsetLeft ]
+                [ newFigure, offsetRight, offsetLeft ]
     in
         case element of
             Nothing ->
-                positionedElement
+                figure
 
             Just a ->
                 a
 
 
-validElementPosition : PositionedElement -> Set Tile -> Bool
-validElementPosition positionedElement fallenTiles =
-    not <| elementExceedsBoard positionedElement || elementOnFallenTile positionedElement fallenTiles
+validElementPosition : Figure -> Set Tile -> Bool
+validElementPosition figure fallenTiles =
+    not <|
+        elementExceedsBoard figure
+            || elementOnFallenTile figure fallenTiles
 
 
 checkGameLost : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -237,19 +241,22 @@ checkGameLost ( model, msg ) =
         ( model, msg )
 
 
-updatePosition : PositionedElement -> Direction -> Set Tile -> PositionedElement
-updatePosition positionedElement direction fallenTiles =
+updatePosition : Figure -> Direction -> Set Tile -> Figure
+updatePosition figure direction fallenTiles =
     let
-        newPositionedElement =
-            moveElement positionedElement direction
+        newFigure =
+            moveElement figure direction
     in
-        if elementExceedsBoard newPositionedElement || elementOnFallenTile newPositionedElement fallenTiles then
-            positionedElement
+        if
+            elementExceedsBoard newFigure
+                || elementOnFallenTile newFigure fallenTiles
+        then
+            figure
         else
-            newPositionedElement
+            newFigure
 
 
-moveElement : PositionedElement -> Direction -> PositionedElement
+moveElement : Figure -> Direction -> Figure
 moveElement ( position, element ) direction =
     case direction of
         Left ->
@@ -262,22 +269,29 @@ moveElement ( position, element ) direction =
             ( moveDown position, element )
 
 
-elementCanMoveDown : PositionedElement -> Set Tile -> Bool
+elementCanMoveDown : Figure -> Set Tile -> Bool
 elementCanMoveDown ( position, element ) fallenTiles =
     (not <| elementExceedsBoard ( position, element ))
         && not (elementOnFallenTile ( position, element ) fallenTiles)
 
 
-elementExceedsBoard : PositionedElement -> Bool
-elementExceedsBoard positionedElement =
-    any (\( x, y ) -> y >= boardHeight || x < 0 || x >= boardWidth) <| List.map first <| elementTiles positionedElement
+elementExceedsBoard : Figure -> Bool
+elementExceedsBoard figure =
+    any tileWithinBoard <|
+        List.map first <|
+            tilesOccupiedByFigure figure
 
 
-elementOnFallenTile : PositionedElement -> Set Tile -> Bool
+tileWithinBoard : Position -> Bool
+tileWithinBoard ( x, y ) =
+    y >= boardHeight || x < 0 || x >= boardWidth
+
+
+elementOnFallenTile : Figure -> Set Tile -> Bool
 elementOnFallenTile positionedElements fallenTiles =
     let
         elementPositions =
-            Set.fromList <| List.map first <| elementTiles positionedElements
+            Set.fromList <| List.map first <| tilesOccupiedByFigure positionedElements
 
         tilePositions =
             Set.map first <| fallenTiles
@@ -285,28 +299,18 @@ elementOnFallenTile positionedElements fallenTiles =
         0 < (Set.size <| Set.intersect tilePositions <| elementPositions)
 
 
-none : (a -> Bool) -> List a -> Bool
-none fn ls =
-    not <| any fn ls
-
-
-moveElementLeft : PositionedElement -> PositionedElement
-moveElementLeft ( position, element ) =
-    ( (moveLeft position), element )
+tilesOccupiedByFigure : Figure -> List Tile
+tilesOccupiedByFigure ( position, tetromino ) =
+    let
+        ( positions, color ) =
+            tetromino
+    in
+        List.map (\p -> ( addPositions p position, color )) positions
 
 
 addPositions : Position -> Position -> Position
 addPositions p1 p2 =
     ( (first p1) + (first p2), (Tuple.second p1) + (Tuple.second p2) )
-
-
-elementTiles : PositionedElement -> List Tile
-elementTiles ( position, tetromino ) =
-    let
-        ( positions, color ) =
-            properties tetromino
-    in
-        List.map (\p -> ( addPositions p position, color )) positions
 
 
 
@@ -331,7 +335,7 @@ view model =
         [ Html.Attributes.style [ ( "padding", "20" ) ] ]
         [ Html.text "ELM Tetris"
         , board model
-        , nextFigure model.nextFigure
+        , nextTetromino model.nextTetromino
         ]
 
 
@@ -352,11 +356,11 @@ board model =
             ]
 
 
-nextFigure : Tetromino -> Html.Html Msg
-nextFigure tetromino =
+nextTetromino : Tetromino -> Html.Html Msg
+nextTetromino tetromino =
     let
         ( positions, color ) =
-            properties tetromino
+            tetromino
     in
         svg
             []
@@ -366,17 +370,17 @@ nextFigure tetromino =
             ]
 
 
-figure : PositionedElement -> Svg Msg
-figure positionedElement =
+figure : Figure -> Svg Msg
+figure figure =
     g
         []
-        (List.map tile <| elementTiles positionedElement)
+        (List.map tile <| tilesOccupiedByFigure figure)
 
 
 toPositionString : Position -> String
 toPositionString position =
-    interpolate "{0} {1}"
-        [ (toString <| tileWidth * first position), (toString <| tileWidth * Tuple.second position) ]
+    (toString <| tileWidth * first position)
+        ++ (toString <| tileWidth * Tuple.second position)
 
 
 tiles : Set Tile -> Svg Msg
