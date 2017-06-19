@@ -13,16 +13,18 @@ type alias Position =
     ( Int, Int )
 
 
-type alias Tile =
-    ( Position, Color )
-
-
 type alias Color =
     String
 
 
 type alias Shape =
     List Position
+
+
+type Direction
+    = Left
+    | Down
+    | Right
 
 
 type Tetromino

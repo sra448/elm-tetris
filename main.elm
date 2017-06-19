@@ -7,7 +7,7 @@ import Svg.Attributes exposing (..)
 import String.Interpolate exposing (interpolate)
 import Time exposing (Time, second)
 import List exposing (..)
-import List.Extra exposing (find)
+import List.Extra exposing (find, group)
 import Tuple exposing (..)
 import Set exposing (..)
 import Random exposing (..)
@@ -38,6 +38,10 @@ boardWidth =
 
 boardHeight =
     18
+
+
+type alias Tile =
+    ( Position, Color )
 
 
 type alias Model =
@@ -84,7 +88,7 @@ update msg model =
     if not model.gameLost then
         case msg of
             Tick newTime ->
-                checkGameLost <| updateCurrentFigure model
+                checkGameLost <| removeFullRows <| updateCurrentFigure model
 
             NewFigure shape ->
                 updateNextFigure model shape
@@ -93,6 +97,47 @@ update msg model =
                 updateFigureByUser model code
     else
         ( model, Cmd.none )
+
+
+removeFullRows : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+removeFullRows ( model, msg ) =
+    let
+        rows =
+            List.map (tilesInRow model.fallenTiles) <|
+                List.range 1 boardHeight
+
+        ( scoreMultiplier, fallenTiles ) =
+            List.foldl
+                (\tiles ( removedRows, remainingTiles ) ->
+                    if Set.size tiles == boardWidth then
+                        ( removedRows + 1, remainingTiles )
+                    else
+                        ( removedRows
+                        , Set.union
+                            (Set.map
+                                (\( ( x, y ), color ) ->
+                                    ( ( x, y + removedRows ), color )
+                                )
+                                tiles
+                            )
+                            remainingTiles
+                        )
+                )
+                ( 0, Set.empty )
+                (List.reverse rows)
+    in
+        ( { model
+            | fallenTiles = fallenTiles
+
+            -- | fallenTiles = List.foldl Set.union Set.empty fallenTiles
+          }
+        , msg
+        )
+
+
+tilesInRow : Set Tile -> Int -> Set Tile
+tilesInRow fallenTiles i =
+    Set.filter (\( ( _, y ), _ ) -> y == i) fallenTiles
 
 
 updateCurrentFigure : Model -> ( Model, Cmd Msg )
@@ -164,7 +209,7 @@ performWithWallKick transformElement positionedElement fallenTiles =
             moveElement newPositionedElement Left
 
         element =
-            find (\e -> Debug.log "is valid?" <| validElementPosition e fallenTiles) <|
+            find (\e -> validElementPosition e fallenTiles) <|
                 [ newPositionedElement, offsetRight, offsetLeft ]
     in
         case element of
@@ -173,13 +218,6 @@ performWithWallKick transformElement positionedElement fallenTiles =
 
             Just a ->
                 a
-
-
-
--- if elementExceedsBoard newPositionedElement || elementOnFallenTile newPositionedElement fallenTiles then
---     updatePosition positionedElement Right fallenTiles
--- else
---     newPositionedElement
 
 
 validElementPosition : PositionedElement -> Set Tile -> Bool
