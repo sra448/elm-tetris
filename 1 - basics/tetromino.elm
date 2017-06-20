@@ -1,8 +1,6 @@
 module Tetromino exposing (..)
 
 import List exposing (..)
-import Tuple exposing (..)
-import Set exposing (..)
 import Random exposing (..)
 
 
@@ -23,36 +21,6 @@ type alias Shape =
 
 type alias Tetromino =
     ( Shape, Color )
-
-
-randomBlock : Generator Tetromino
-randomBlock =
-    Random.map tetrominoById <| Random.int 1 7
-
-
-tetrominoById : Int -> Tetromino
-tetrominoById i =
-    case i of
-        1 ->
-            lTetromino
-
-        2 ->
-            zTetromino
-
-        3 ->
-            iTetromino
-
-        4 ->
-            sTetromino
-
-        5 ->
-            tTetromino
-
-        6 ->
-            jTetromino
-
-        _ ->
-            oTetromino
 
 
 lTetromino : Tetromino
@@ -132,102 +100,113 @@ oTetromino =
     )
 
 
+
+-- Rotating
+
+
 rotateShape : Tetromino -> Tetromino
 rotateShape ( positions, color ) =
     let
-        isEven =
-            2 == List.foldl (\( x, y ) acc -> max acc <| max x y) 0 positions
+        tilesWidth =
+            foldl max 0 <|
+                List.map (\( x, y ) -> max x y) positions
+
+        rotate =
+            if tilesWidth + 1 == 3 then
+                rotate3
+            else
+                rotate4
     in
-        if isEven then
-            ( List.map rotateEven <| positions, color )
+        if tilesWidth + 1 == 2 then
+            ( positions, color )
         else
-            ( List.map rotateUneven <| positions, color )
+            ( List.map rotate positions, color )
 
 
-rotateEven : Position -> Position
-rotateEven position =
+rotate4 : Position -> Position
+rotate4 position =
     case position of
-        ( -2, -2 ) ->
-            ( 1, -2 )
-
-        ( -1, -2 ) ->
-            ( 1, -1 )
-
-        ( 0, -2 ) ->
-            ( 1, 0 )
-
-        ( 1, -2 ) ->
-            ( 1, 1 )
-
-        ( -2, -1 ) ->
-            ( 0, -2 )
-
-        ( -1, -1 ) ->
-            ( 0, -1 )
-
-        ( 0, -1 ) ->
-            ( 0, 0 )
-
-        ( 1, -1 ) ->
-            ( 0, 1 )
-
-        ( -2, 0 ) ->
-            ( -1, -2 )
-
-        ( -1, 0 ) ->
-            ( -1, -1 )
-
         ( 0, 0 ) ->
-            ( -1, 0 )
+            ( 0, 3 )
 
         ( 1, 0 ) ->
-            ( -1, 1 )
+            ( 0, 2 )
 
-        ( -2, 1 ) ->
-            ( -2, -2 )
+        ( 2, 0 ) ->
+            ( 0, 1 )
 
-        ( -1, 1 ) ->
-            ( -2, -1 )
+        ( 3, 0 ) ->
+            ( 0, 0 )
 
         ( 0, 1 ) ->
-            ( -2, 0 )
+            ( 2, 3 )
 
         ( 1, 1 ) ->
-            ( -2, 1 )
+            ( 1, 2 )
 
-        ( a, b ) ->
-            ( a, b )
-
-
-rotateUneven : Position -> Position
-rotateUneven position =
-    case position of
-        ( -1, -1 ) ->
-            ( 1, -1 )
-
-        ( 0, -1 ) ->
-            ( 1, 0 )
-
-        ( 1, -1 ) ->
+        ( 2, 1 ) ->
             ( 1, 1 )
 
-        ( -1, 0 ) ->
-            ( 0, -1 )
+        ( 3, 1 ) ->
+            ( 1, 0 )
 
+        ( 0, 2 ) ->
+            ( 2, 3 )
+
+        ( 1, 2 ) ->
+            ( 2, 2 )
+
+        ( 2, 2 ) ->
+            ( 2, 1 )
+
+        ( 3, 2 ) ->
+            ( 2, 0 )
+
+        ( 0, 3 ) ->
+            ( 3, 3 )
+
+        ( 1, 3 ) ->
+            ( 3, 2 )
+
+        ( 2, 3 ) ->
+            ( 3, 1 )
+
+        ( 3, 3 ) ->
+            ( 3, 0 )
+
+        other ->
+            other
+
+
+rotate3 : Position -> Position
+rotate3 position =
+    case position of
         ( 0, 0 ) ->
-            ( 0, 0 )
+            ( 0, 2 )
 
         ( 1, 0 ) ->
             ( 0, 1 )
 
-        ( -1, 1 ) ->
-            ( -1, -1 )
+        ( 2, 0 ) ->
+            ( 0, 0 )
 
         ( 0, 1 ) ->
-            ( -1, 0 )
+            ( 1, 2 )
 
         ( 1, 1 ) ->
-            ( -1, 1 )
+            ( 1, 1 )
 
-        ( a, b ) ->
-            ( a, b )
+        ( 2, 1 ) ->
+            ( 1, 0 )
+
+        ( 0, 2 ) ->
+            ( 2, 2 )
+
+        ( 1, 2 ) ->
+            ( 2, 1 )
+
+        ( 2, 2 ) ->
+            ( 2, 0 )
+
+        other ->
+            other
