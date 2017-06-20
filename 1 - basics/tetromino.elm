@@ -21,29 +21,8 @@ type alias Shape =
     List Position
 
 
-type Direction
-    = Left
-    | Down
-    | Right
-
-
 type alias Tetromino =
     ( Shape, Color )
-
-
-moveDown : Position -> Position
-moveDown ( x, y ) =
-    ( x, y + 1 )
-
-
-moveRight : Position -> Position
-moveRight ( x, y ) =
-    ( x + 1, y )
-
-
-moveLeft : Position -> Position
-moveLeft ( x, y ) =
-    ( x - 1, y )
 
 
 randomBlock : Generator Tetromino
@@ -78,10 +57,10 @@ tetrominoById i =
 
 lTetromino : Tetromino
 lTetromino =
-    ( [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 1, -1 )
-      , ( 1, 0 )
+    ( [ ( 0, 1 )
+      , ( 1, 1 )
+      , ( 2, 1 )
+      , ( 2, 0 )
       ]
     , "crimson"
     )
@@ -89,10 +68,10 @@ lTetromino =
 
 jTetromino : Tetromino
 jTetromino =
-    ( [ ( 1, 1 )
-      , ( 0, -1 )
-      , ( 1, -1 )
-      , ( 1, 0 )
+    ( [ ( 0, 0 )
+      , ( 0, 1 )
+      , ( 1, 1 )
+      , ( 2, 1 )
       ]
     , "teal"
     )
@@ -100,10 +79,10 @@ jTetromino =
 
 zTetromino : Tetromino
 zTetromino =
-    ( [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 0, 0 )
+    ( [ ( 0, 1 )
+      , ( 1, 1 )
       , ( 1, 0 )
+      , ( 2, 0 )
       ]
     , "coral"
     )
@@ -111,10 +90,10 @@ zTetromino =
 
 sTetromino : Tetromino
 sTetromino =
-    ( [ ( -1, -1 )
-      , ( 0, 0 )
-      , ( 0, -1 )
-      , ( 1, -1 )
+    ( [ ( 0, 0 )
+      , ( 1, 1 )
+      , ( 1, 0 )
+      , ( 2, 1 )
       ]
     , "palevioletred"
     )
@@ -122,10 +101,10 @@ sTetromino =
 
 tTetromino : Tetromino
 tTetromino =
-    ( [ ( -1, 0 )
-      , ( 0, 0 )
-      , ( 0, -1 )
-      , ( 1, -1 )
+    ( [ ( 0, 1 )
+      , ( 1, 1 )
+      , ( 1, 0 )
+      , ( 2, 1 )
       ]
     , "olivedrab"
     )
@@ -133,10 +112,10 @@ tTetromino =
 
 iTetromino : Tetromino
 iTetromino =
-    ( [ ( -1, -2 )
-      , ( -1, -1 )
-      , ( -1, 0 )
-      , ( -1, 1 )
+    ( [ ( 0, 1 )
+      , ( 1, 1 )
+      , ( 2, 1 )
+      , ( 3, 1 )
       ]
     , "lightseagreen"
     )
@@ -144,10 +123,10 @@ iTetromino =
 
 oTetromino : Tetromino
 oTetromino =
-    ( [ ( -1, -1 )
-      , ( 0, -1 )
-      , ( 0, 0 )
-      , ( -1, 0 )
+    ( [ ( 0, 0 )
+      , ( 0, 1 )
+      , ( 1, 0 )
+      , ( 1, 1 )
       ]
     , "goldenrod"
     )
