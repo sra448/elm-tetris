@@ -121,17 +121,13 @@ moveCurrentFigure model code =
 
 tryRotateFigure : Figure -> Set Tile -> Figure
 tryRotateFigure figure fallenTiles =
-    performWithWallKick
-        (\( position, tetromino ) ->
-            ( position, rotateShape tetromino )
-        )
-        figure
-        fallenTiles
-
-
-updateCurrentFigurePosition : Model -> Direction -> Figure
-updateCurrentFigurePosition model direction =
-    updatePosition model.currentFigure direction model.fallenTiles
+    Maybe.withDefault figure <|
+        performWithWallKick
+            (\( position, tetromino ) ->
+                ( position, rotateShape tetromino )
+            )
+            figure
+            fallenTiles
 
 
 pushDownCurrentFigure : Model -> ( Model, Cmd Msg )
@@ -198,7 +194,7 @@ tilesInRow fallenTiles i =
     Set.filter (\( ( _, y ), _ ) -> y == i) fallenTiles
 
 
-performWithWallKick : (Figure -> Figure) -> Figure -> Set Tile -> Figure
+performWithWallKick : (Figure -> Figure) -> Figure -> Set Tile -> Maybe Figure
 performWithWallKick transformFn figure fallenTiles =
     let
         newFigure =
@@ -209,17 +205,9 @@ performWithWallKick transformFn figure fallenTiles =
 
         offsetLeft =
             moveElement newFigure Left
-
-        element =
-            find (\e -> validElementPosition e fallenTiles) <|
-                [ newFigure, offsetRight, offsetLeft ]
     in
-        case element of
-            Nothing ->
-                figure
-
-            Just a ->
-                a
+        find (\e -> validElementPosition e fallenTiles) <|
+            [ newFigure, offsetRight, offsetLeft ]
 
 
 validElementPosition : Figure -> Set Tile -> Bool
