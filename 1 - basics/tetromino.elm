@@ -15,12 +15,8 @@ type alias Color =
     String
 
 
-type alias Shape =
-    List Position
-
-
 type alias Tetromino =
-    ( Shape, Color )
+    ( List Position, Color )
 
 
 lTetromino : Tetromino
@@ -100,6 +96,28 @@ oTetromino =
     )
 
 
+randomTetromino : Generator Tetromino
+randomTetromino =
+    let
+        candidates =
+            [ lTetromino
+            , jTetromino
+            , zTetromino
+            , sTetromino
+            , tTetromino
+            , iTetromino
+            , oTetromino
+            ]
+
+        tetrominoById n =
+            Maybe.withDefault oTetromino <| List.head <| List.drop n candidates
+    in
+        Random.map tetrominoById <|
+            Random.int 0 <|
+                List.length candidates
+                    - 1
+
+
 
 -- Rotating
 
@@ -126,53 +144,53 @@ rotateShape ( positions, color ) =
 rotate4 : Position -> Position
 rotate4 position =
     case position of
-        ( 0, 0 ) ->
-            ( 0, 3 )
-
-        ( 1, 0 ) ->
-            ( 0, 2 )
-
-        ( 2, 0 ) ->
-            ( 0, 1 )
-
-        ( 3, 0 ) ->
+        ( 0, 3 ) ->
             ( 0, 0 )
 
+        ( 0, 2 ) ->
+            ( 1, 0 )
+
         ( 0, 1 ) ->
-            ( 2, 3 )
+            ( 2, 0 )
+
+        ( 0, 0 ) ->
+            ( 3, 0 )
+
+        ( 1, 3 ) ->
+            ( 0, 1 )
+
+        ( 1, 2 ) ->
+            ( 1, 1 )
 
         ( 1, 1 ) ->
+            ( 2, 1 )
+
+        ( 1, 0 ) ->
+            ( 3, 1 )
+
+        ( 2, 3 ) ->
+            ( 0, 2 )
+
+        ( 2, 2 ) ->
             ( 1, 2 )
 
         ( 2, 1 ) ->
-            ( 1, 1 )
-
-        ( 3, 1 ) ->
-            ( 1, 0 )
-
-        ( 0, 2 ) ->
-            ( 2, 3 )
-
-        ( 1, 2 ) ->
             ( 2, 2 )
 
-        ( 2, 2 ) ->
-            ( 2, 1 )
-
-        ( 3, 2 ) ->
-            ( 2, 0 )
-
-        ( 0, 3 ) ->
-            ( 3, 3 )
-
-        ( 1, 3 ) ->
+        ( 2, 0 ) ->
             ( 3, 2 )
 
-        ( 2, 3 ) ->
-            ( 3, 1 )
-
         ( 3, 3 ) ->
-            ( 3, 0 )
+            ( 0, 3 )
+
+        ( 3, 2 ) ->
+            ( 1, 3 )
+
+        ( 3, 1 ) ->
+            ( 2, 3 )
+
+        ( 3, 0 ) ->
+            ( 3, 3 )
 
         other ->
             other
@@ -181,32 +199,32 @@ rotate4 position =
 rotate3 : Position -> Position
 rotate3 position =
     case position of
-        ( 0, 0 ) ->
-            ( 0, 2 )
-
-        ( 1, 0 ) ->
-            ( 0, 1 )
-
-        ( 2, 0 ) ->
+        ( 0, 2 ) ->
             ( 0, 0 )
 
         ( 0, 1 ) ->
-            ( 1, 2 )
+            ( 1, 0 )
+
+        ( 0, 0 ) ->
+            ( 2, 0 )
+
+        ( 1, 2 ) ->
+            ( 0, 1 )
 
         ( 1, 1 ) ->
             ( 1, 1 )
 
-        ( 2, 1 ) ->
-            ( 1, 0 )
-
-        ( 0, 2 ) ->
-            ( 2, 2 )
-
-        ( 1, 2 ) ->
+        ( 1, 0 ) ->
             ( 2, 1 )
 
         ( 2, 2 ) ->
-            ( 2, 0 )
+            ( 0, 2 )
+
+        ( 2, 1 ) ->
+            ( 1, 2 )
+
+        ( 2, 0 ) ->
+            ( 2, 2 )
 
         other ->
             other

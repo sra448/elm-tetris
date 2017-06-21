@@ -4,6 +4,7 @@ import Html exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Keyboard exposing (..)
+import Random exposing (..)
 import Tetromino exposing (..)
 
 
@@ -20,13 +21,19 @@ main =
 -- MODEL
 
 
+type alias Tile =
+    ( Position, Color )
+
+
 type alias Model =
     Tetromino
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( lTetromino, Cmd.none )
+    ( zTetromino
+    , Random.generate ResetTetromino randomTetromino
+    )
 
 
 
@@ -35,11 +42,15 @@ init =
 
 type Msg
     = UserInput Int
+    | ResetTetromino Tetromino
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg tetromino =
     case msg of
+        ResetTetromino newT ->
+            ( newT, Cmd.none )
+
         UserInput 32 ->
             ( rotateShape tetromino, Cmd.none )
 
@@ -64,17 +75,24 @@ tileWidth =
     20
 
 
-view : Model -> Html.Html Msg
+view : Model -> Html Msg
 view ( positions, color ) =
-    svg
+    div
         []
+        [ figure ( positions, color )
+        ]
+
+
+figure : Model -> Svg Msg
+figure ( positions, color ) =
+    svg []
         (List.map
             (\position -> tile ( position, color ))
             positions
         )
 
 
-tile : ( Position, Color ) -> Svg Msg
+tile : Tile -> Svg Msg
 tile ( ( tileX, tileY ), color ) =
     g
         [ fill "white", stroke color, strokeWidth "2" ]
