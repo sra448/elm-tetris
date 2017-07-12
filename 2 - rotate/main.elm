@@ -3,6 +3,7 @@ module Main exposing (..)
 import Html exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
+import Keyboard exposing (..)
 import Tetromino exposing (..)
 
 
@@ -25,7 +26,7 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( lTetromino
+    ( zTetromino
     , Cmd.none
     )
 
@@ -35,12 +36,17 @@ init =
 
 
 type Msg
-    = NothingYet
+    = UserInput Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    ( model, Cmd.none )
+update msg tetromino =
+    case msg of
+        UserInput 32 ->
+            ( rotateShape tetromino, Cmd.none )
+
+        _ ->
+            ( tetromino, Cmd.none )
 
 
 
@@ -49,7 +55,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Keyboard.downs UserInput
 
 
 
