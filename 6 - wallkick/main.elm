@@ -5,6 +5,9 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Keyboard exposing (..)
 import Random exposing (..)
+import List exposing (..)
+import List.Extra exposing (find)
+import Set exposing (..)
 import Tetromino exposing (..)
 
 
@@ -21,13 +24,21 @@ main =
 -- MODEL
 
 
-type alias PositionedTetromino =
+type alias Figure =
     ( Position, Tetromino )
 
 
 type alias Model =
-    { currentFigure : PositionedTetromino
+    { currentFigure : Figure
     }
+
+
+boardWidth =
+    12
+
+
+boardHeight =
+    18
 
 
 init : ( Model, Cmd Msg )
@@ -77,6 +88,10 @@ resetCurrentTetromino model tetromino =
     }
 
 
+
+-- moving tetromino
+
+
 moveCurrentFigure : Model -> Int -> Model
 moveCurrentFigure model code =
     { model
@@ -92,7 +107,7 @@ moveCurrentFigure model code =
                     updatePosition model.currentFigure Down
 
                 32 ->
-                    rotateFigure model.currentFigure
+                    tryRotateFigure model.currentFigure
 
                 _ ->
                     model.currentFigure
@@ -103,8 +118,20 @@ moveCurrentFigure model code =
 -- Update Tetromino Position
 
 
-updatePosition : PositionedTetromino -> Direction -> PositionedTetromino
-updatePosition ( position, element ) direction =
+updatePosition : Figure -> Direction -> Figure
+updatePosition figure direction =
+    let
+        newFigure =
+            moveElement figure direction
+    in
+        if validFigurePosition newFigure then
+            newFigure
+        else
+            figure
+
+
+moveElement : Figure -> Direction -> Figure
+moveElement ( position, element ) direction =
     case direction of
         Left ->
             ( moveLeft position, element )
@@ -132,19 +159,56 @@ moveLeft ( x, y ) =
 
 
 
--- Rotate Tetromino in place
+-- rotate Tetromino in place
 
 
-rotateFigure : PositionedTetromino -> PositionedTetromino
+tryRotateFigure : Figure -> Figure
+tryRotateFigure figure =
+    let
+        offsetDownFigure =
+            rotateFigure figure
+
+        offsetRightFigure =
+            moveElement offsetDownFigure Right
+
+        offsetLeftFigure =
+            moveElement offsetDownFigure Left
+    in
+        Maybe.withDefault figure <|
+            find (\e -> validFigurePosition e) <|
+                [ offsetDownFigure, offsetRightFigure, offsetLeftFigure ]
+
+
+rotateFigure : Figure -> Figure
 rotateFigure ( positions, tetromino ) =
     ( positions, rotateShape tetromino )
+
+
+
+-- collision detection
+
+
+validFigurePosition : Figure -> Bool
+validFigurePosition figure =
+    not <| figureExceedsBoard figure
+
+
+figureExceedsBoard : Figure -> Bool
+figureExceedsBoard figure =
+    any tileWithinBoard <|
+        tilesOfFigure figure
+
+
+tileWithinBoard : Tile -> Bool
+tileWithinBoard ( ( x, y ), _ ) =
+    y >= boardHeight || x < 0 || x >= boardWidth
 
 
 
 -- convert a positioned tetromino to its positioned tiles
 
 
-tilesOfFigure : PositionedTetromino -> List Tile
+tilesOfFigure : Figure -> List Tile
 tilesOfFigure ( position, tetromino ) =
     let
         ( positions, color ) =
@@ -179,14 +243,6 @@ tileWidth =
     20
 
 
-boardWidth =
-    12
-
-
-boardHeight =
-    18
-
-
 view : Model -> Html.Html Msg
 view model =
     svg
@@ -217,7 +273,7 @@ boardBorder =
             []
 
 
-figure : PositionedTetromino -> Svg Msg
+figure : Figure -> Svg Msg
 figure figure =
     g
         []

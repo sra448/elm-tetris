@@ -5,6 +5,7 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Keyboard exposing (..)
 import Random exposing (..)
+import List exposing (..)
 import Tetromino exposing (..)
 
 
@@ -28,6 +29,14 @@ type alias PositionedTetromino =
 type alias Model =
     { currentFigure : PositionedTetromino
     }
+
+
+boardWidth =
+    12
+
+
+boardHeight =
+    18
 
 
 init : ( Model, Cmd Msg )
@@ -77,6 +86,10 @@ resetCurrentTetromino model tetromino =
     }
 
 
+
+-- moving tetromino
+
+
 moveCurrentFigure : Model -> Int -> Model
 moveCurrentFigure model code =
     { model
@@ -104,7 +117,19 @@ moveCurrentFigure model code =
 
 
 updatePosition : PositionedTetromino -> Direction -> PositionedTetromino
-updatePosition ( position, element ) direction =
+updatePosition figure direction =
+    let
+        newFigure =
+            moveElement figure direction
+    in
+        if figureExceedsBoard newFigure then
+            figure
+        else
+            newFigure
+
+
+moveElement : PositionedTetromino -> Direction -> PositionedTetromino
+moveElement ( position, element ) direction =
     case direction of
         Left ->
             ( moveLeft position, element )
@@ -132,12 +157,27 @@ moveLeft ( x, y ) =
 
 
 
--- Rotate Tetromino in place
+-- rotate Tetromino in place
 
 
 rotateFigure : PositionedTetromino -> PositionedTetromino
 rotateFigure ( positions, tetromino ) =
     ( positions, rotateShape tetromino )
+
+
+
+-- collision detection
+
+
+figureExceedsBoard : PositionedTetromino -> Bool
+figureExceedsBoard figure =
+    any tileWithinBoard <|
+        tilesOfFigure figure
+
+
+tileWithinBoard : Tile -> Bool
+tileWithinBoard ( ( x, y ), _ ) =
+    y >= boardHeight || x < 0 || x >= boardWidth
 
 
 
@@ -177,14 +217,6 @@ type alias Tile =
 
 tileWidth =
     20
-
-
-boardWidth =
-    12
-
-
-boardHeight =
-    18
 
 
 view : Model -> Html.Html Msg

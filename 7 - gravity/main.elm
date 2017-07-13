@@ -5,6 +5,10 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Keyboard exposing (..)
 import Random exposing (..)
+import List exposing (..)
+import List.Extra exposing (find)
+import Set exposing (..)
+import Time exposing (..)
 import Tetromino exposing (..)
 
 
@@ -21,18 +25,29 @@ main =
 -- MODEL
 
 
-type alias PositionedTetromino =
+type alias Figure =
     ( Position, Tetromino )
 
 
 type alias Model =
-    { currentFigure : PositionedTetromino
+    { currentFigure : Figure
+    , fallenTiles : Set Tile
     }
+
+
+boardWidth =
+    12
+
+
+boardHeight =
+    18
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( { currentFigure = ( ( 5, -2 ), zTetromino ) }
+    ( { currentFigure = ( ( 5, -2 ), zTetromino )
+      , fallenTiles = Set.empty
+      }
     , Random.generate ResetTetromino randomTetromino
     )
 
@@ -50,6 +65,7 @@ type Direction
 type Msg
     = UserInput Int
     | ResetTetromino Tetromino
+    | Tick Time
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -65,6 +81,9 @@ update msg model =
             , Cmd.none
             )
 
+        Tick _ ->
+            pushDownCurrentFigure model
+
 
 
 -- reset current tetromino
@@ -75,6 +94,45 @@ resetCurrentTetromino model tetromino =
     { model
         | currentFigure = ( ( 5, -2 ), tetromino )
     }
+
+
+
+-- make tetromino fall Down
+
+
+pushDownCurrentFigure : Model -> ( Model, Cmd Msg )
+pushDownCurrentFigure model =
+    let
+        ( position, _ ) =
+            model.currentFigure
+
+        ( newPosition, element ) =
+            updatePosition model.currentFigure Down
+    in
+        if newPosition == position then
+            makeCurrentFigureStatic model
+        else
+            ( { model
+                | currentFigure = ( newPosition, element )
+              }
+            , Cmd.none
+            )
+
+
+makeCurrentFigureStatic : Model -> ( Model, Cmd Msg )
+makeCurrentFigureStatic model =
+    ( { model
+        | fallenTiles =
+            Set.union model.fallenTiles <|
+                Set.fromList <|
+                    tilesOfFigure model.currentFigure
+      }
+    , Random.generate ResetTetromino randomTetromino
+    )
+
+
+
+-- moving tetromino
 
 
 moveCurrentFigure : Model -> Int -> Model
@@ -92,7 +150,7 @@ moveCurrentFigure model code =
                     updatePosition model.currentFigure Down
 
                 32 ->
-                    rotateFigure model.currentFigure
+                    tryRotateFigure model.currentFigure
 
                 _ ->
                     model.currentFigure
@@ -103,8 +161,20 @@ moveCurrentFigure model code =
 -- Update Tetromino Position
 
 
-updatePosition : PositionedTetromino -> Direction -> PositionedTetromino
-updatePosition ( position, element ) direction =
+updatePosition : Figure -> Direction -> Figure
+updatePosition figure direction =
+    let
+        newFigure =
+            moveElement figure direction
+    in
+        if validFigurePosition newFigure then
+            newFigure
+        else
+            figure
+
+
+moveElement : Figure -> Direction -> Figure
+moveElement ( position, element ) direction =
     case direction of
         Left ->
             ( moveLeft position, element )
@@ -132,19 +202,56 @@ moveLeft ( x, y ) =
 
 
 
--- Rotate Tetromino in place
+-- rotate Tetromino in place
 
 
-rotateFigure : PositionedTetromino -> PositionedTetromino
+tryRotateFigure : Figure -> Figure
+tryRotateFigure figure =
+    let
+        offsetDownFigure =
+            rotateFigure figure
+
+        offsetRightFigure =
+            moveElement offsetDownFigure Right
+
+        offsetLeftFigure =
+            moveElement offsetDownFigure Left
+    in
+        Maybe.withDefault figure <|
+            find (\e -> validFigurePosition e) <|
+                [ offsetDownFigure, offsetRightFigure, offsetLeftFigure ]
+
+
+rotateFigure : Figure -> Figure
 rotateFigure ( positions, tetromino ) =
     ( positions, rotateShape tetromino )
+
+
+
+-- collision detection
+
+
+validFigurePosition : Figure -> Bool
+validFigurePosition figure =
+    not <| figureExceedsBoard figure
+
+
+figureExceedsBoard : Figure -> Bool
+figureExceedsBoard figure =
+    any tileWithinBoard <|
+        tilesOfFigure figure
+
+
+tileWithinBoard : Tile -> Bool
+tileWithinBoard ( ( x, y ), _ ) =
+    y >= boardHeight || x < 0 || x >= boardWidth
 
 
 
 -- convert a positioned tetromino to its positioned tiles
 
 
-tilesOfFigure : PositionedTetromino -> List Tile
+tilesOfFigure : Figure -> List Tile
 tilesOfFigure ( position, tetromino ) =
     let
         ( positions, color ) =
@@ -164,7 +271,10 @@ addPositions ( x1, y1 ) ( x2, y2 ) =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Keyboard.downs UserInput
+    Sub.batch
+        [ Time.every (Time.second / 2) Tick
+        , Keyboard.downs UserInput
+        ]
 
 
 
@@ -179,19 +289,12 @@ tileWidth =
     20
 
 
-boardWidth =
-    12
-
-
-boardHeight =
-    18
-
-
 view : Model -> Html.Html Msg
 view model =
     svg
         [ width "90%", height "90%" ]
         [ figure model.currentFigure
+        , tiles model.fallenTiles
         , boardBorder
         ]
 
@@ -217,11 +320,18 @@ boardBorder =
             []
 
 
-figure : PositionedTetromino -> Svg Msg
+figure : Figure -> Svg Msg
 figure figure =
     g
         []
         (List.map tile <| tilesOfFigure figure)
+
+
+tiles : Set Tile -> Svg Msg
+tiles ts =
+    g [] <|
+        List.map tile <|
+            Set.toList ts
 
 
 tile : Tile -> Svg Msg
